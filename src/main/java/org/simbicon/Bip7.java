@@ -98,7 +98,7 @@ public class Bip7 {
     }
 
     public void computeGroundForces(Ground gnd) {
-        int   i1, i2, i3;                 // indices
+        int     i1, i2, i3;                 // indices
         int     pt;
         Point2D f = new Point2D();
 
@@ -187,8 +187,8 @@ public class Bip7 {
      */
     public void drawJoint(Graphics g, Matrix3x3 transform) {
         float   jointSize = 0.01f;
-        Polygon p  = new Polygon();
-        Point2D pp = new Point2D();
+        Polygon p         = new Polygon();
+        Point2D pp        = new Point2D();
 
         // draw R knee joint
         pp = transform.multiplyBy(new Point2D(-jointSize, -jointSize));
@@ -204,14 +204,7 @@ public class Bip7 {
     }
 
     float sign(float x) {
-        if (x < 0) {
-            return -1;
-        }
-        if (x > 0) {
-            return 1;
-        }
-        return 0;
-
+        return x < 0 ? -1f : (x > 0 ? 1f : 0f);
     }
 
     /**

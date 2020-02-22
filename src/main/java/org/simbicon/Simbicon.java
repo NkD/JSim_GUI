@@ -5,7 +5,6 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
-import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.Color;
@@ -17,8 +16,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 
 /**
@@ -40,9 +37,19 @@ public class Simbicon extends JFrame {
     private final JPanel topPanel = new JPanel();
     private final JLabel lblSpeed = new JLabel("Speed: ");
     private final JSlider sliderSpeed = new JSlider(1, 100);
-    private final JButton btnSim = new JButton("Pause");
     private final JButton btnReset = new JButton("Reset");
     private final Canvas canvas = new Canvas();
+    private final BufferedImage imgBuffer = new BufferedImage(500, 500, BufferedImage.TYPE_INT_RGB);
+
+    private final Controller con = new Controller();
+    private final Bip7 bip7 = new Bip7();
+    private final Ground ground = new Ground();
+    private float time = 0;
+    private float deltaTime = 0.00005f;
+    private float deltaTimeRender = 0.0012f;
+
+    private float md, mdd;
+    private final float desVel = 0f;
 
     private void initSwing() {
         sliderSpeed.addMouseListener(new MouseAdapter() {
@@ -51,23 +58,18 @@ public class Simbicon extends JFrame {
                 float slow  = 0.0001f;
                 float fast  = 0.02f;
                 float range = fast - slow;
-                DtDisp = slow + range * sliderSpeed.getValue() / 100.0f;
+                deltaTimeRender = slow + range * sliderSpeed.getValue() / 100.0f;
             }
-        });
-        btnSim.addActionListener(evt -> {
-            simFlag = !simFlag;
-            btnSim.setText(simFlag ? "Pause" : "Start");
         });
         btnReset.addActionListener(evt -> resetSimulation());
         topPanel.setLayout(new FlowLayout());
         topPanel.add(lblSpeed);
         topPanel.add(sliderSpeed);
-        topPanel.add(btnSim);
         topPanel.add(btnReset);
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
         add(canvas, BorderLayout.CENTER);
-        canvas.setSize(500, 500);
+        canvas.setSize(imgBuffer.getWidth(), imgBuffer.getHeight());
         pack();
 
         KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
@@ -94,11 +96,11 @@ public class Simbicon extends JFrame {
                     con.desiredGroupNumber = 2;
                 }
                 if (e.getKeyChar() == '1') {
-                    gnd.getFlatGround();
+                    ground.getFlatGround();
                     resetSimulation();
                 }
                 if (e.getKeyChar() == '2') {
-                    gnd.getComplexTerrain();
+                    ground.getComplexTerrain();
                     resetSimulation();
                 }
             }
@@ -106,34 +108,7 @@ public class Simbicon extends JFrame {
         });
     }
 
-    Bip7 bip7 = new Bip7();
-    Ground gnd = new Ground();
-    private float Dt = 0.00005f;
-    private float DtDisp = 0.0012f;
-    private float timeEllapsed = 0;
-
-    //we'll use this buffered image to reduce flickering
-    BufferedImage imgBuffer;
-    Timer timer;
-
-    //and the controller
-    Controller con;
-
-    //GF
-    float[] totalTorques = new float[7];
-
-    float Md, Mdd;
-
-    float DesVel = 0;
-
-    //if this variable is set to true, the simulation will be running, otherwise it won't
-    boolean simFlag = false;
-
-    private int last_state;
-    private float last_foot_location;
-
     public void init() {
-
         float torso0    = 0;
         float torso1    = 0;
         float torso2    = 0;
@@ -156,25 +131,7 @@ public class Simbicon extends JFrame {
         float lankle1   = 0;
         float lankle2   = 0;
         float transTime = 0;
-
-        // Load running controller params from file
-        try {
-            // Open the file that is the first
-            // command line parameter
-
-            InputStream resourceAsStream = Simbicon.class.getResourceAsStream("/run_params_1-beta-025-2.txt");
-
-            // Get the object of DataInputStream
-            DataInputStream in = new DataInputStream(resourceAsStream);
-            BufferedReader  br = new BufferedReader(new InputStreamReader(in));
-            String          strLine;
-
-            //Read File Line By Line
-            //while ((strLine = br.readLine()) != null)   {
-            // Print the content on the console
-            //System.out.println (strLine);
-            //}
-
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(Simbicon.class.getResourceAsStream("/run_params_1-beta-025-2.txt")))) {
             torso0    = new Float(br.readLine());
             torso1    = new Float(br.readLine());
             torso2    = new Float(br.readLine());
@@ -197,27 +154,14 @@ public class Simbicon extends JFrame {
             lankle1   = new Float(br.readLine());
             lankle2   = new Float(br.readLine());
             transTime = new Float(br.readLine());
-
-            //Close the input stream
-            in.close();
         } catch (Exception e) {//Catch exception if any
             System.err.println("Error: " + e.getMessage());
-        }
-
-        //GF
-
-        //GF
-        for (int i = 0; i < 7; ++i) {
-            totalTorques[i] = 0;
         }
 
         //initialize the biped to a valid state:
         float[] state = {0.463f, 0.98f, 0.898f, -0.229f, 0.051f, 0.276f, -0.221f, -1.430f, -0.217f, 0.086f, 0.298f, -3.268f, -0.601f, 3.167f, 0.360f, 0.697f, 0.241f, 3.532f};
         bip7.setState(state);
 
-        imgBuffer = new BufferedImage(500, 500, BufferedImage.TYPE_INT_RGB);
-
-        con = new Controller();
         con.addWalkingController();
         con.addRunningController();
         con.addCrouchWalkController();
@@ -243,19 +187,29 @@ public class Simbicon extends JFrame {
         con.state[6].setThThDThDD(6, rankle0, rankle1, rankle2);        // lankle
 
         con.desiredGroupNumber = 1;
-        simFlag                = true;
-
     }
 
-    public float boundRange(float value, float min, float max) {
-        if (value < min) {
-            value = min;
-        }
+    public void runLoop() {
+        while (isDisplayable()) {
+            bip7.computeGroundForces(ground);
+            bip7Control(bip7.t);
+            bip7.runSimulationStep(deltaTime);
 
-        if (value > max) {
-            value = max;
+            time += deltaTime;
+            if (time > deltaTimeRender) {
+                update(getGraphics());
+                time = 0;
+            }
+            Thread.yield();
         }
-        return value;
+    }
+
+    public void resetSimulation() {
+        bip7.resetBiped();
+        con.stateTime          = 0;
+        con.fsmState           = 0;
+        con.currentGroupNumber = 0;
+        con.desiredGroupNumber = 1;
     }
 
     //////////////////////////////////////////////////////////
@@ -313,13 +267,13 @@ public class Simbicon extends JFrame {
                 false   // lankle
         };
 
-        con.stateTime += Dt;
+        con.stateTime += deltaTime;
         ConState s = con.state[con.fsmState];
 
         computeMdMdd();
         for (int n = 0; n < 7; n++) {         // compute target angles for each joint
-            float target = s.th[n] + Md * s.thd[n] + Mdd * s.thdd[n];         // target state + fb actions
-            target = boundRange(target, con.targetLimit[0][n], con.targetLimit[1][n]);    // limit range of target angle
+            float target = s.th[n] + md * s.thd[n] + mdd * s.thdd[n];         // target state + fb actions
+            target = clamp(target, con.targetLimit[0][n], con.targetLimit[1][n]);    // limit range of target angle
             wPDtorq(torq, n, target, con.kp[n], con.kd[n], worldFrame[n]);  // compute torques
         }
 
@@ -363,66 +317,15 @@ public class Simbicon extends JFrame {
         torq[0] = 0;         // no external torque allowed !
 
         for (int n = 1; n < 7; n++) {
-            torq[n] = boundRange(torq[n], con.torqueLimit[0][n], con.torqueLimit[1][n]);   // torq limits
+            torq[n] = clamp(torq[n], con.torqueLimit[0][n], con.torqueLimit[1][n]);   // torq limits
             jointLimit(torq[n], n);                                             // apply joint limits
         }
     }
 
     public void computeMdMdd() {
         float stanceFootX = bip7.getStanceFootXPos(con);
-        Mdd = bip7.state[1] - DesVel;          // center-of-mass velocity error
-        Md  = bip7.state[0] - stanceFootX;      // center-of-mass position error
-    }
-
-    public void resetSimulation() {
-        //toggle the sim flag
-        bip7.resetBiped();
-
-        con.stateTime          = 0;
-        con.fsmState           = 0;
-        con.currentGroupNumber = 0;
-        con.desiredGroupNumber = 1;
-
-        repaint();
-    }
-
-    public void runLoop() {
-
-        while (4 > 3) {
-            bip7.computeGroundForces(gnd);
-            bip7Control(bip7.t);
-
-            // save torques
-            //for(int index_t = 0; index_t < 7; ++index_t){
-            //	totalTorques[index_t] = Math.abs(bip7.t[index_t]);
-            //}
-            //
-
-            bip7.runSimulationStep(Dt);
-
-            timeEllapsed += Dt;
-            if (timeEllapsed > DtDisp) {
-                //we need to redraw the frame
-                this.update(this.getGraphics());
-                timeEllapsed = 0;
-
-                //
-                //for(int index_t = 0; index_t < 7; ++index_t){
-                //	System.out.println("torque " + index_t + ":" + totalTorques[index_t]);
-                //}
-                //
-
-                /*int state = con.fsmState;
-                if (state == 6 && last_state != 6) {
-                    float new_foot_location = bip7.getStanceFootXPos(con);
-                    System.out.println(new_foot_location - last_foot_location);
-                    last_foot_location = new_foot_location;
-                }
-                last_state = con.fsmState;*/
-            }
-            Thread.yield();
-        }
-        //}
+        mdd = bip7.state[1] - desVel;          // center-of-mass velocity error
+        md  = bip7.state[0] - stanceFootX;      // center-of-mass position error
     }
 
     public void update(Graphics g) {
@@ -438,7 +341,11 @@ public class Simbicon extends JFrame {
         m = m.multiplyBy(Matrix3x3.getTranslationMatrix(-panX + 1.5f, -panY + 0.5f));
 
         bip7.drawBiped(gBuffer, m);
-        gnd.draw(gBuffer, m);
+        ground.draw(gBuffer, m);
         canvas.getGraphics().drawImage(imgBuffer, 0, 0, this);
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
