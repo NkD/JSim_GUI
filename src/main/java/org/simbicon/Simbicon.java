@@ -16,6 +16,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 /**
@@ -85,9 +86,11 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
         try {
             // Open the file that is the first
             // command line parameter
-            FileInputStream fstream = new FileInputStream("run_params_1-beta-025-2.txt");
+
+            InputStream resourceAsStream = Simbicon.class.getResourceAsStream("/run_params_1-beta-025-2.txt");
+
             // Get the object of DataInputStream
-            DataInputStream in = new DataInputStream(fstream);
+            DataInputStream in = new DataInputStream(resourceAsStream);
             BufferedReader  br = new BufferedReader(new InputStreamReader(in));
             String          strLine;
 
