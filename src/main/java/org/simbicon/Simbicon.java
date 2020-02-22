@@ -1,5 +1,6 @@
 package org.simbicon;
 
+import javax.swing.JFrame;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -22,12 +23,20 @@ import java.io.InputStreamReader;
 /**
  * @author Stel-l
  */
-public class Simbicon extends java.applet.Applet implements MouseListener, MouseMotionListener, KeyListener {
+public class Simbicon extends JFrame implements MouseListener, MouseMotionListener, KeyListener {
+
+    public static void main(String[] args) {
+        Simbicon simbicon = new Simbicon();
+        simbicon.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        simbicon.init();
+        simbicon.setSize(520,570);
+        simbicon.setVisible(true);
+    }
 
     Bip7 bip7 = new Bip7();
     Ground gnd = new Ground();
     private float Dt = 0.00005f;
-    private float DtDisp = 0.0054f;
+    private float DtDisp = 0.0012f;
     private float timeEllapsed = 0;
 
     //we'll use this buffered image to reduce flickering
@@ -180,6 +189,9 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
         con.state[6].setThThDThDD(5, lankle0, lankle1, lankle2);        // rankle
         con.state[6].setThThDThDD(6, rankle0, rankle1, rankle2);        // lankle
 
+        con.desiredGroupNumber = 1;
+        simFlag = true;
+
         this.addKeyListener(this);
         this.requestFocus();
     }
@@ -311,6 +323,8 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
         Md  = bip7.state[0] - stanceFootX;      // center-of-mass position error
     }
 
+
+
     public void initComponents() {
         //now we'll make a little of a GUI to let the user pause the simulation, etc.
 
@@ -373,7 +387,7 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
         con.stateTime          = 0;
         con.fsmState           = 0;
         con.currentGroupNumber = 0;
-        con.desiredGroupNumber = 0;
+        con.desiredGroupNumber = 1;
 
         repaint();
     }
@@ -408,13 +422,13 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
                 //}
                 //
 
-                int state = con.fsmState;
+                /*int state = con.fsmState;
                 if (state == 6 && last_state != 6) {
                     float new_foot_location = bip7.getStanceFootXPos(con);
                     System.out.println(new_foot_location - last_foot_location);
                     last_foot_location = new_foot_location;
                 }
-                last_state = con.fsmState;
+                last_state = con.fsmState;*/
             }
         }
         timer.start();
@@ -439,7 +453,7 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
 
         bip7.drawBiped(g2, m);
         gnd.draw(g2, m);
-        g.drawImage(tempBuffer, 0, panel.getHeight(), this);
+        g.drawImage(tempBuffer, 0, panel.getHeight()+30, this);
         panel.repaint();
     }
 
