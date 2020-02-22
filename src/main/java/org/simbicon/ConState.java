@@ -1,3 +1,5 @@
+package org.simbicon;
+
 /**
  * @author Stel-l
  */

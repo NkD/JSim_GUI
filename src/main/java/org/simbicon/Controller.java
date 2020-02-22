@@ -1,3 +1,5 @@
+package org.simbicon;
+
 /**
  * @author Stel-l
  */
@@ -59,7 +61,7 @@ public class Controller {
     }
 
     /**
-     * Creates a new instance of Controller
+     * Creates a new instance of main.java.org.simbicon.Controller
      */
     public Controller() {
         //initialize some of the default parameters

@@ -1,3 +1,5 @@
+package org.simbicon;
+
 import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -524,7 +526,7 @@ public class Simbicon extends java.applet.Applet implements MouseListener, Mouse
     }
 
     public String getAppletInfo() {
-        return "Title: Simbicon\n" + "Author: Stelian Coros, Michiel van de Panne.";
+        return "Title: main.java.org.simbicon.Simbicon\n" + "Author: Stelian Coros, Michiel van de Panne.";
     }
 
 }
