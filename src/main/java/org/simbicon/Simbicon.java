@@ -1,36 +1,109 @@
 package org.simbicon;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
 /**
  * @author Stel-l
  */
-public class Simbicon extends JFrame implements MouseListener, MouseMotionListener, KeyListener {
+public class Simbicon extends JFrame {
 
     public static void main(String[] args) {
         Simbicon simbicon = new Simbicon();
+        simbicon.setTitle("Simbicon");
         simbicon.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        simbicon.initSwing();
         simbicon.init();
-        simbicon.setSize(520,570);
         simbicon.setVisible(true);
+
+        simbicon.runLoop();
+    }
+
+    private final JPanel topPanel = new JPanel();
+    private final JLabel lblSpeed = new JLabel("Speed: ");
+    private final JSlider sliderSpeed = new JSlider(1, 100);
+    private final JButton btnSim = new JButton("Pause");
+    private final JButton btnReset = new JButton("Reset");
+    private final Canvas canvas = new Canvas();
+
+    private void initSwing() {
+        sliderSpeed.addMouseListener(new MouseAdapter() {
+            public void mouseReleased(MouseEvent evt) {
+                //adjust the speed of the animation:
+                float slow  = 0.0001f;
+                float fast  = 0.02f;
+                float range = fast - slow;
+                DtDisp = slow + range * sliderSpeed.getValue() / 100.0f;
+            }
+        });
+        btnSim.addActionListener(evt -> {
+            simFlag = !simFlag;
+            btnSim.setText(simFlag ? "Pause" : "Start");
+        });
+        btnReset.addActionListener(evt -> resetSimulation());
+        topPanel.setLayout(new FlowLayout());
+        topPanel.add(lblSpeed);
+        topPanel.add(sliderSpeed);
+        topPanel.add(btnSim);
+        topPanel.add(btnReset);
+        setLayout(new BorderLayout());
+        add(topPanel, BorderLayout.NORTH);
+        add(canvas, BorderLayout.CENTER);
+        canvas.setSize(500, 500);
+        pack();
+
+        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        manager.addKeyEventDispatcher(e -> {
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+                    bip7.PushTime  = 0.2f;
+                    bip7.PushForce = -60;
+                    return true;
+                }
+                if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    bip7.PushTime  = 0.2f;
+                    bip7.PushForce = 60;
+                    return true;
+                }
+            } else if (e.getID() == KeyEvent.KEY_TYPED) {
+                if (e.getKeyChar() == 'r' || e.getKeyChar() == 'R') {
+                    con.desiredGroupNumber = 1;
+                }
+                if (e.getKeyChar() == 'w' || e.getKeyChar() == 'W') {
+                    con.desiredGroupNumber = 0;
+                }
+                if (e.getKeyChar() == 'c' || e.getKeyChar() == 'C') {
+                    con.desiredGroupNumber = 2;
+                }
+                if (e.getKeyChar() == '1') {
+                    gnd.getFlatGround();
+                    resetSimulation();
+                }
+                if (e.getKeyChar() == '2') {
+                    gnd.getComplexTerrain();
+                    resetSimulation();
+                }
+            }
+            return false;
+        });
     }
 
     Bip7 bip7 = new Bip7();
@@ -40,7 +113,7 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
     private float timeEllapsed = 0;
 
     //we'll use this buffered image to reduce flickering
-    BufferedImage tempBuffer;
+    BufferedImage imgBuffer;
     Timer timer;
 
     //and the controller
@@ -56,13 +129,6 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
     //if this variable is set to true, the simulation will be running, otherwise it won't
     boolean simFlag = false;
 
-    private javax.swing.JButton simButton;
-    private javax.swing.JButton reset;
-    private javax.swing.JPanel panel;
-    private javax.swing.JSlider speedSlider;
-    private javax.swing.JLabel label;
-
-    boolean shouldPanY = false;
     private int last_state;
     private float last_foot_location;
 
@@ -139,9 +205,6 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
         }
 
         //GF
-        setSize(500, 500);
-        addMouseListener(this);
-        addMouseMotionListener(this);
 
         //GF
         for (int i = 0; i < 7; ++i) {
@@ -152,18 +215,8 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
         float[] state = {0.463f, 0.98f, 0.898f, -0.229f, 0.051f, 0.276f, -0.221f, -1.430f, -0.217f, 0.086f, 0.298f, -3.268f, -0.601f, 3.167f, 0.360f, 0.697f, 0.241f, 3.532f};
         bip7.setState(state);
 
-        int delay = 1; //milliseconds
-        ActionListener taskPerformer = new ActionListener() {
-            public void actionPerformed(ActionEvent evt) {
-                runLoop();
-            }
-        };
-        timer = new Timer(delay, taskPerformer);
-        timer.start();
+        imgBuffer = new BufferedImage(500, 500, BufferedImage.TYPE_INT_RGB);
 
-        tempBuffer = new BufferedImage(500, 500, BufferedImage.TYPE_INT_RGB);
-
-        initComponents();
         con = new Controller();
         con.addWalkingController();
         con.addRunningController();
@@ -190,10 +243,8 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
         con.state[6].setThThDThDD(6, rankle0, rankle1, rankle2);        // lankle
 
         con.desiredGroupNumber = 1;
-        simFlag = true;
+        simFlag                = true;
 
-        this.addKeyListener(this);
-        this.requestFocus();
     }
 
     public float boundRange(float value, float min, float max) {
@@ -323,63 +374,6 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
         Md  = bip7.state[0] - stanceFootX;      // center-of-mass position error
     }
 
-
-
-    public void initComponents() {
-        //now we'll make a little of a GUI to let the user pause the simulation, etc.
-
-        simButton = new javax.swing.JButton();
-        reset     = new javax.swing.JButton();
-        panel     = new javax.swing.JPanel();
-        label     = new javax.swing.JLabel();
-        label.setText("Speed: ");
-
-        speedSlider = new javax.swing.JSlider();
-        speedSlider.setMaximum(100);
-        speedSlider.setMinimum(0);
-        speedSlider.setToolTipText("Adjust the speed of the simulation by adjusting this slider.");
-
-        setLayout(new BorderLayout());
-        panel.setLayout(new FlowLayout());
-        add(panel, BorderLayout.NORTH);
-
-        panel.add(label);
-        panel.add(speedSlider);
-        panel.add(simButton);
-        panel.add(reset);
-
-        speedSlider.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                //adjust the speed of the animation:
-                float slow  = 0.0001f;
-                float fast  = 0.02f;
-                float range = fast - slow;
-
-                DtDisp = slow + range * speedSlider.getValue() / 100.0f;
-            }
-        });
-
-        simButton.setText("  Start  ");
-        reset.setText("Reset");
-        simButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                //toggle the sim flag
-                simFlag = !simFlag;
-                if (simFlag) {
-                    simButton.setText("Pause");
-                } else {
-                    simButton.setText("  Start  ");
-                }
-            }
-        });
-
-        reset.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                resetSimulation();
-            }
-        });
-    }
-
     public void resetSimulation() {
         //toggle the sim flag
         bip7.resetBiped();
@@ -393,12 +387,8 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
     }
 
     public void runLoop() {
-        if (!simFlag) {
-            return;
-        }
-        timer.stop();
-        //we'll run this a few times since the timer doesn't fire fast enough
-        for (int i = 0; i < 200; i++) {
+
+        while (4 > 3) {
             bip7.computeGroundForces(gnd);
             bip7Control(bip7.t);
 
@@ -430,120 +420,25 @@ public class Simbicon extends JFrame implements MouseListener, MouseMotionListen
                 }
                 last_state = con.fsmState;*/
             }
+            Thread.yield();
         }
-        timer.start();
+        //}
     }
 
     public void update(Graphics g) {
-        if (g == null) {
-            return;
-        }
-        Graphics g2 = tempBuffer.getGraphics();
-        g2.setColor(new Color(255, 255, 255));
-        g2.fillRect(0, 0, getSize().width - 1, getSize().height - 1);
+        Graphics gBuffer = imgBuffer.getGraphics();
+        gBuffer.setColor(new Color(255, 255, 255));
+        gBuffer.fillRect(0, 0, imgBuffer.getWidth(), imgBuffer.getHeight());
+
         Matrix3x3 m = Matrix3x3.getTranslationMatrix(0, -300);
         m = m.multiplyBy(Matrix3x3.getScalingMatrix((float) 100));
 
         float panX = bip7.state[0];
-        float panY = bip7.state[2];
-        if (!shouldPanY) {
-            panY = 0;
-        }
+        float panY = 0; //bip7.state[2];
         m = m.multiplyBy(Matrix3x3.getTranslationMatrix(-panX + 1.5f, -panY + 0.5f));
 
-        bip7.drawBiped(g2, m);
-        gnd.draw(g2, m);
-        g.drawImage(tempBuffer, 0, panel.getHeight()+30, this);
-        panel.repaint();
+        bip7.drawBiped(gBuffer, m);
+        gnd.draw(gBuffer, m);
+        canvas.getGraphics().drawImage(imgBuffer, 0, 0, this);
     }
-
-    public void paint(Graphics g) {
-        update(g);
-        panel.repaint();
-    }
-
-    /*
-     * Keyboard methods
-     */
-    public void keyReleased(KeyEvent e) {
-
-    }
-
-    public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-            bip7.PushTime  = 0.2f;
-            bip7.PushForce = -60;
-        }
-
-        if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-            bip7.PushTime  = 0.2f;
-            bip7.PushForce = 60;
-        }
-
-        if (e.getKeyChar() == 'r' || e.getKeyChar() == 'R') {
-            con.desiredGroupNumber = 1;
-        }
-
-        if (e.getKeyChar() == 'w' || e.getKeyChar() == 'W') {
-            con.desiredGroupNumber = 0;
-        }
-
-        if (e.getKeyChar() == 'c' || e.getKeyChar() == 'C') {
-            con.desiredGroupNumber = 2;
-        }
-
-        if (e.getKeyChar() == '1') {
-            gnd.getFlatGround();
-            resetSimulation();
-        }
-
-        if (e.getKeyChar() == '2') {
-            gnd.getComplexTerrain();
-            resetSimulation();
-        }
-
-    }
-
-    /*
-     * Keyboard methods
-     */
-    public void keyTyped(KeyEvent e) {
-    }
-
-    /*
-     * Mouse methods
-     */
-    public void mouseDragged(MouseEvent e) {
-
-    }
-
-    public void mouseMoved(MouseEvent e) {
-    }
-
-    public void mousePressed(MouseEvent e) {
-        this.requestFocus();
-    }
-
-    public void mouseReleased(MouseEvent e) {
-    }
-
-    public void mouseEntered(MouseEvent e) {
-
-    }
-
-    public void mouseExited(MouseEvent e) {
-    }
-
-    public void mouseClicked(MouseEvent e) {
-    }
-
-    public void destroy() {
-        removeMouseListener(this);
-        removeMouseMotionListener(this);
-    }
-
-    public String getAppletInfo() {
-        return "Title: main.java.org.simbicon.Simbicon\n" + "Author: Stelian Coros, Michiel van de Panne.";
-    }
-
 }
