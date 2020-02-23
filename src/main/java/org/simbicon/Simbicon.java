@@ -85,11 +85,11 @@ public class Simbicon extends JFrame {
                     return true;
                 }
             } else if (e.getID() == KeyEvent.KEY_TYPED) {
-                if (e.getKeyChar() == 'r' || e.getKeyChar() == 'R') {
-                    con.desiredGroupNumber = 1;
-                }
                 if (e.getKeyChar() == 'w' || e.getKeyChar() == 'W') {
                     con.desiredGroupNumber = 0;
+                }
+                if (e.getKeyChar() == 'r' || e.getKeyChar() == 'R') {
+                    con.desiredGroupNumber = 1;
                 }
                 if (e.getKeyChar() == 'c' || e.getKeyChar() == 'C') {
                     con.desiredGroupNumber = 2;
@@ -226,26 +226,6 @@ public class Simbicon extends JFrame {
     }
 
     //////////////////////////////////////////////////////////
-    // PROC:  jointLimit()
-    // DOES:  enforces joint limits
-    //////////////////////////////////////////////////////////
-    public float jointLimit(float torq, int joint) {
-        float kpL       = 800;
-        float kdL       = 80;
-        float minAngle  = con.jointLimit[0][joint];
-        float maxAngle  = con.jointLimit[1][joint];
-        float currAngle = bip7.state[4 + joint * 2];
-        float currOmega = bip7.state[4 + joint * 2 + 1];
-
-        if (currAngle < minAngle) {
-            torq = kpL * (minAngle - currAngle) - kdL * currOmega;
-        } else if (currAngle > maxAngle) {
-            torq = kpL * (maxAngle - currAngle) - kdL * currOmega;
-        }
-        return torq;
-    }
-
-    //////////////////////////////////////////////////////////
     //	PROC:	bip7WalkFsm(torq)
     //	DOES:	walking control FSM
     //////////////////////////////////////////////////////////
@@ -301,7 +281,7 @@ public class Simbicon extends JFrame {
             bip7WalkFsm(torq);
         }
 
-        // now change torq[body], which is virtual, 
+        // now change torq[body], which is virtual,
         // to include a FEL feed-forward component
 
         // compute stance leg torque based upon body and swing leg
@@ -315,12 +295,6 @@ public class Simbicon extends JFrame {
 
         if (!con.state[con.fsmState].poseStance) {
             torq[stanceHip] = -torq[body] - torq[swingHip];
-        }
-        torq[0] = 0;         // no external torque allowed !
-
-        for (int n = 1; n < 7; n++) {
-            torq[n] = clamp(torq[n], con.torqueLimit[0][n], con.torqueLimit[1][n]);   // torq limits
-            jointLimit(torq[n], n);                                             // apply joint limits
         }
     }
 

@@ -7,8 +7,6 @@ public class Controller {
     final static int MaxStates = 100;
     final static int MaxJoints = 10;
     final static int MaxGroups = 30;
-    final static int MaxJumps = 20;
-    final static int NONE = -1;
 
     public ConState[] state = new ConState[MaxStates];                         // states, index-access by groups
     public Group[] groups = new Group[MaxGroups];         // groups
