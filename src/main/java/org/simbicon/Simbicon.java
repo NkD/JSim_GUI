@@ -48,7 +48,6 @@ public class Simbicon extends JFrame {
     private float deltaTime = 0.00005f;
     private float deltaTimeRender = 0.0012f;
 
-    private float md, mdd;
     private final float desVel = 0f;
 
     private void initSwing() {
@@ -270,7 +269,10 @@ public class Simbicon extends JFrame {
         con.stateTime += deltaTime;
         ConState s = con.state[con.fsmState];
 
-        computeMdMdd();
+        float stanceFootX = bip7.getStanceFootXPos(con);
+        float mdd         = bip7.state[1] - desVel;          // center-of-mass velocity error
+        float md = bip7.state[0] - stanceFootX;
+
         for (int n = 0; n < 7; n++) {         // compute target angles for each joint
             float target = s.th[n] + md * s.thd[n] + mdd * s.thdd[n];         // target state + fb actions
             target = clamp(target, con.targetLimit[0][n], con.targetLimit[1][n]);    // limit range of target angle
@@ -320,12 +322,6 @@ public class Simbicon extends JFrame {
             torq[n] = clamp(torq[n], con.torqueLimit[0][n], con.torqueLimit[1][n]);   // torq limits
             jointLimit(torq[n], n);                                             // apply joint limits
         }
-    }
-
-    public void computeMdMdd() {
-        float stanceFootX = bip7.getStanceFootXPos(con);
-        mdd = bip7.state[1] - desVel;          // center-of-mass velocity error
-        md  = bip7.state[0] - stanceFootX;      // center-of-mass position error
     }
 
     public void update(Graphics g) {
